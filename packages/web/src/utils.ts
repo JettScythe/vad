@@ -11,7 +11,7 @@ export function arrayBufferToBase64(buffer: ArrayBuffer) {
   var len = bytes.byteLength
   var binary = new Array(len)
   for (var i = 0; i < len; i++) {
-    binary[i] += String.fromCharCode(bytes[i] as number)
+    binary[i] = String.fromCharCode(bytes[i] as number)
   }
   return btoa(binary.join(''))
 }
