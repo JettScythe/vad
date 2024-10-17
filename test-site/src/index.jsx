@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useMicVAD, utils } from "@ricky0123/vad-react"
 import * as ort from "onnxruntime-web"
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
 
 React // prevent prettier imports plugin from removing React
@@ -22,6 +22,25 @@ const vadMethods = ["pause", "start", "toggle"]
 
 function App() {
   const [audioList, setAudioList] = useState([])
+  const [ws, setWs] = useState(null) // WebSocket instance
+  useEffect(() => {
+    const websocket = new WebSocket("ws://localhost:8000/audio")
+    websocket.binaryType = "arraybuffer"
+    websocket.onopen = () => {
+      console.log("WebSocket connected")
+    }
+    websocket.onclose = () => {
+      console.log("WebSocket disconnected")
+    }
+    websocket.onerror = (error) => {
+      console.error("WebSocket error:", error)
+    }
+    setWs(websocket)
+    return () => {
+      websocket.close()
+    }
+  }, [])
+
   const vad = useMicVAD({
     workletURL: "vad.worklet.bundle.min.js",
     modelURL: "silero_vad.onnx",
@@ -31,6 +50,12 @@ function App() {
     onSpeechStart: () => {
       console.log("Speech start")
     },
+    onFrameProcessed: (probs, frame) => {
+      if (vad.userSpeaking && ws && ws.OPEN) {
+        ws.send(frame)
+      }
+    },
+
     onSpeechEnd: (audio) => {
       console.log("Speech end")
       const wavBuffer = utils.encodeWAV(audio)

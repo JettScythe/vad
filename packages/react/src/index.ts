@@ -1,6 +1,7 @@
 import type { RealTimeVADOptions } from "@ricky0123/vad-web"
 import { MicVAD, defaultRealTimeVADOptions } from "@ricky0123/vad-web"
 import React, { useEffect, useReducer, useState } from "react"
+import { SpeechProbabilities } from "@ricky0123/vad-web/dist/models"
 
 export { utils } from "@ricky0123/vad-web"
 
@@ -67,9 +68,10 @@ export function useMicVAD(options: Partial<ReactRealTimeVADOptions>) {
   const [vad, setVAD] = useState<MicVAD | null>(null)
 
   const userOnFrameProcessed = useEventCallback(vadOptions.onFrameProcessed)
-  vadOptions.onFrameProcessed = useEventCallback((probs) => {
+  vadOptions.onFrameProcessed = useEventCallback((probs: SpeechProbabilities, frame: Float32Array) => {
     updateUserSpeaking(probs.isSpeech)
-    userOnFrameProcessed
+    userOnFrameProcessed(probs, frame)
+    // console.log(probs, frame)
   })
   const { onSpeechEnd, onSpeechStart, onVADMisfire } = vadOptions
   const _onSpeechEnd = useEventCallback(onSpeechEnd)
@@ -128,6 +130,7 @@ export function useMicVAD(options: Partial<ReactRealTimeVADOptions>) {
       vad?.start()
       setListening(true)
     }
+
   }
   const toggle = () => {
     if (listening) {
