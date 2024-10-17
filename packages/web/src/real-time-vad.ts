@@ -1,21 +1,19 @@
 import * as ortInstance from "onnxruntime-web"
-import {
-  log,
-  Message,
-  Silero,
-  SpeechProbabilities,
-  defaultFrameProcessorOptions,
-  FrameProcessor,
-  FrameProcessorOptions,
-  OrtOptions,
-  validateOptions,
-} from "./_common"
 import { assetPath } from "./asset-path"
 import { defaultModelFetcher } from "./default-model-fetcher"
+import {
+  FrameProcessor,
+  FrameProcessorOptions,
+  defaultFrameProcessorOptions,
+  validateOptions,
+} from "./frame-processor"
+import { log } from "./logging"
+import { Message } from "./messages"
+import { OrtOptions, Silero, SpeechProbabilities } from "./models"
 
 interface RealTimeVADCallbacks {
   /** Callback to run after each frame. The size (number of samples) of a frame is given by `frameSamples`. */
-  onFrameProcessed: (probabilities: SpeechProbabilities) => any
+  onFrameProcessed: (probabilities: SpeechProbabilities, frame: Float32Array) => any
 
   /** Callback to run if speech start was detected but `onSpeechEnd` will not be run because the
    * audio segment is smaller than `minSpeechFrames`.
@@ -73,7 +71,7 @@ export type RealTimeVADOptions =
 
 export const defaultRealTimeVADOptions: RealTimeVADOptions = {
   ...defaultFrameProcessorOptions,
-  onFrameProcessed: (probabilities) => {},
+  onFrameProcessed: (probabilities: SpeechProbabilities, frame: Float32Array) => {},
   onVADMisfire: () => {
     log.debug("VAD misfire")
   },
@@ -272,10 +270,11 @@ export class AudioNodeVAD {
       probs: SpeechProbabilities
       msg: Message
       audio: Float32Array
+      frame: Float32Array
     }>
   ) => {
     if (ev.probs !== undefined) {
-      this.options.onFrameProcessed(ev.probs)
+      this.options.onFrameProcessed(ev.probs, ev.frame as Float32Array)
     }
     switch (ev.msg) {
       case Message.SpeechStart:

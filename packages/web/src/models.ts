@@ -19,8 +19,7 @@ export interface Model {
 
 export class Silero {
   _session
-  _h
-  _c
+  _state
   _sr
 
   constructor(
@@ -44,22 +43,19 @@ export class Silero {
   }
 
   reset_state = () => {
-    const zeroes = Array(2 * 64).fill(0)
-    this._h = new this.ort.Tensor("float32", zeroes, [2, 1, 64])
-    this._c = new this.ort.Tensor("float32", zeroes, [2, 1, 64])
+    const zeroes = Array(2 * 128).fill(0)
+    this._state = new this.ort.Tensor("float32", zeroes, [2, 1, 128])
   }
 
   process = async (audioFrame: Float32Array): Promise<SpeechProbabilities> => {
     const t = new this.ort.Tensor("float32", audioFrame, [1, audioFrame.length])
     const inputs = {
       input: t,
-      h: this._h,
-      c: this._c,
+      state: this._state,
       sr: this._sr,
     }
     const out = await this._session.run(inputs)
-    this._h = out.hn
-    this._c = out.cn
+    this._state = out.stateN
     const [isSpeech] = out.output.data
     const notSpeech = 1 - isSpeech
     return { notSpeech, isSpeech }

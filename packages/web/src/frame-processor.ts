@@ -3,11 +3,11 @@ Some of this code, together with the default options found in index.ts,
 were taken (or took inspiration) from https://github.com/snakers4/silero-vad
 */
 
-import { SpeechProbabilities } from "./models"
-import { Message } from "./messages"
 import { log } from "./logging"
+import { Message } from "./messages"
+import { SpeechProbabilities } from "./models"
 
-const RECOMMENDED_FRAME_SAMPLES = [512, 1024, 1536]
+const ALLOWED_FRAME_SAMPLES = [512, 1024, 1536]
 
 export interface FrameProcessorOptions {
   /** Threshold over which values returned by the Silero VAD model will be considered as positively indicating speech.
@@ -51,17 +51,19 @@ export interface FrameProcessorOptions {
 
 export const defaultFrameProcessorOptions: FrameProcessorOptions = {
   positiveSpeechThreshold: 0.5,
-  negativeSpeechThreshold: 0.5 - 0.15,
-  preSpeechPadFrames: 1,
-  redemptionFrames: 8,
-  frameSamples: 1536,
-  minSpeechFrames: 3,
+  negativeSpeechThreshold: 0.5,
+  preSpeechPadFrames: 3,
+  redemptionFrames: 20,
+  frameSamples: 512,
+  minSpeechFrames: 10,
   submitUserSpeechOnPause: false,
 }
 
 export function validateOptions(options: FrameProcessorOptions) {
-  if (!RECOMMENDED_FRAME_SAMPLES.includes(options.frameSamples)) {
-    log.warn("You are using an unusual frame size")
+  if (!ALLOWED_FRAME_SAMPLES.includes(options.frameSamples)) {
+    log.error(
+      `You must use frameSamples = ${256} for sample rate 8000 and frameSamples = ${512} for sample rate 16000`
+    )
   }
   if (
     options.positiveSpeechThreshold < 0 ||
@@ -193,7 +195,7 @@ export class FrameProcessor implements FrameProcessorInterface {
       !this.speaking
     ) {
       this.speaking = true
-      return { probs, msg: Message.SpeechStart }
+      return { probs, msg: Message.SpeechStart, frame}
     }
 
     if (
@@ -213,9 +215,9 @@ export class FrameProcessor implements FrameProcessorInterface {
 
       if (speechFrameCount >= this.options.minSpeechFrames) {
         const audio = concatArrays(audioBuffer.map((item) => item.frame))
-        return { probs, msg: Message.SpeechEnd, audio }
+        return { probs, msg: Message.SpeechEnd, audio, frame }
       } else {
-        return { probs, msg: Message.VADMisfire }
+        return { probs, msg: Message.VADMisfire, frame }
       }
     }
 
@@ -224,6 +226,6 @@ export class FrameProcessor implements FrameProcessorInterface {
         this.audioBuffer.shift()
       }
     }
-    return { probs }
+    return { probs, frame }
   }
 }
